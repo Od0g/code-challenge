@@ -1,84 +1,160 @@
 # Indicium Tech Code Challenge
 
-Code challenge for Software Developer with focus in data projects.
+Este repositório contém minha solução para o desafio proposto pela Indicium Tech, onde desenvolvi um pipeline de dados completo para extrair, transformar e carregar dados de diferentes fontes.
 
+## Contexto
 
-## Context
+A Indicium Tech trabalha com projetos de pipeline de dados, extraindo informações de múltiplas fontes e carregando-as em diferentes destinos, como data warehouses ou APIs.
 
-At Indicium we have many projects where we develop the whole data pipeline for our client, from extracting data from many data sources to loading this data at its final destination, with this final destination varying from a data warehouse for a Business Intelligency tool to an api for integrating with third party systems.
+Meu desafio foi projetar, desenvolver, implantar e manter uma pipeline que extraia dados diariamente de duas fontes (um banco de dados PostgreSQL e um arquivo CSV), armazenando esses dados primeiro localmente e depois carregando-os em um banco PostgreSQL.
 
-As a software developer with focus in data projects your mission is to plan, develop, deploy, and maintain a data pipeline.
+## Descrição do Desafio
 
+Recebi duas fontes de dados:
 
-## The Challenge
+- Um banco de dados PostgreSQL (Northwind, uma base educacional da Microsoft, com a diferença de que a tabela **order_detail** foi removida).
+- Um arquivo CSV contendo os detalhes dos pedidos (substituindo a tabela **order_detail**).
 
-We are going to provide 2 data sources, a PostgreSQL database and a CSV file.
+Minha solução deveria:
 
-The CSV file represents details of orders from an ecommerce system.
+- Extrair os dados diariamente das duas fontes.
+- Armazenar os dados extraídos localmente em arquivos organizados por data.
+- Carregar esses dados posteriormente para um banco PostgreSQL.
+- Permitir a execução do pipeline para qualquer dia no passado.
+- Garantir que a pipeline fosse idempotente.
+- Exibir os pedidos e seus detalhes em uma consulta final.
 
-The database provided is a sample database provided by microsoft for education purposes called northwind, the only difference is that the **order_detail** table does not exists in this database you are beeing provided with. This order_details table is represented by the CSV file we provide.
+## Ferramentas Utilizadas
 
-Schema of the original Northwind Database: 
+Seguindo as recomendações da Indicium, utilizei:
 
-![image](https://user-images.githubusercontent.com/49417424/105997621-9666b980-608a-11eb-86fd-db6b44ece02a.png)
+- **Airflow** para orquestrar a execução das tarefas.
+- **PostgreSQL** como banco de dados.
+- **MongoDB** para armazenar logs.
+- **Meltano** para extrair e carregar os dados.
+- **Docker** para conteinerização do ambiente.
 
-Your challenge is to build a pipeline that extracts the data everyday from both sources and write the data first to local disk, and second to a PostgreSQL database. For this challenge, the CSV file and the database will be static, but in any real world project, both data sources would be changing constantly.
-
-Its important that all writing steps (writing data from inputs to local filesystem and writing data from local filesystem to PostgreSQL database) are isolated from each other, you shoud be able to run any step without executing the others.
-
-For the first step, where you write data to local disk, you should write one file for each table. This pipeline will run everyday, so there should be a separation in the file paths you will create for each source(CSV or Postgres), table and execution day combination, e.g.:
+## Estrutura do Projeto
 
 ```
-/data/postgres/{table}/2024-01-01/file.format
-/data/postgres/{table}/2024-01-02/file.format
-/data/csv/2024-01-02/file.format
+/code-challenge
+│── airflow/
+│   ├── dags/  # Scripts de DAGs do Airflow
+│   ├── logs/  # Logs de execução do Airflow
+│   ├── airflow.cfg  # Configuração do Airflow
+│── data/  # Diretório onde os arquivos extraídos são armazenados
+│── dbmongo/  # Dados do MongoDB
+│── docker-compose.yml  # Configuração do ambiente
+│── requirements.txt  # Dependências do Airflow
 ```
 
-You are free to chose the naming and the format of the file you are going to save.
+## Como Configurar e Executar o Projeto
 
-At step 2, you should load the data from the local filesystem, which you have created, to the final database.
+### 1. Configuração do Ambiente
 
-The final goal is to be able to run a query that shows the orders and its details. The Orders are placed in a table called **orders** at the postgres Northwind database. The details are placed at the csv file provided, and each line has an **order_id** field pointing the **orders** table.
+Primeiro, clone o repositório e acesse o diretório do projeto:
 
-## Solution Diagram
+```bash
+git clone https://github.com/Od0g/code-challenge.git
+cd code-challenge
+```
 
-As Indicium uses some standard tools, the challenge was designed to be done using some of these tools.
+Crie os diretórios necessários para armazenar os dados extraídos:
 
-The following tools should be used to solve this challenge.
+```bash
+mkdir -p data/postgres
+data/csv
+```
 
-Scheduler:
-- [Airflow](https://airflow.apache.org/docs/apache-airflow/stable/installation/index.html)
+### 2. Subindo os Contêineres Docker
 
-Data Loader:
-- [Embulk](https://www.embulk.org) (Java Based)
-**OR**
-- [Meltano](https://docs.meltano.com/?_gl=1*1nu14zf*_gcl_au*MTg2OTE2NDQ4Mi4xNzA2MDM5OTAz) (Python Based)
+Utilizei o Docker para gerenciar as dependências. Para iniciar os serviços:
 
-Database:
-- [PostgreSQL](https://www.postgresql.org/docs/15/index.html)
+```bash
+docker-compose up -d
+```
 
-The solution should be based on the diagrams below:
-![image](docs/diagrama_embulk_meltano.jpg)
+Isso iniciará:
 
+- **PostgreSQL** na porta 5432
+- **MongoDB** na porta 27017
+- **Airflow** na porta 8080
 
-### Requirements
+Acesse o Airflow via navegador em `http://localhost:8080`.
 
-- You **must** use the tools described above to complete the challenge.
-- All tasks should be idempotent, you should be able to run the pipeline everyday and, in this case where the data is static, the output shold be the same.
-- Step 2 depends on both tasks of step 1, so you should not be able to run step 2 for a day if the tasks from step 1 did not succeed.
-- You should extract all the tables from the source database, it does not matter that you will not use most of them for the final step.
-- You should be able to tell where the pipeline failed clearly, so you know from which step you should rerun the pipeline.
-- You have to provide clear instructions on how to run the whole pipeline. The easier the better.
-- You must provide evidence that the process has been completed successfully, i.e. you must provide a csv or json with the result of the query described above.
-- You should assume that it will run for different days, everyday.
-- Your pipeline should be prepared to run for past days, meaning you should be able to pass an argument to the pipeline with a day from the past, and it should reprocess the data for that day. Since the data for this challenge is static, the only difference for each day of execution will be the output paths.
+### 3. Configuração das Conexões no Airflow
 
-### Things that Matters
+No Airflow, configurei as conexões para acessar as fontes de dados:
 
-- Clean and organized code.
-- Good decisions at which step (which database, which file format..) and good arguments to back those decisions up.
-- The aim of the challenge is not only to assess technical knowledge in the area, but also the ability to search for information and use it to solve problems with tools that are not necessarily known to the candidate.
-- Point and click tools are not allowed.
+1. **PostgreSQL**: Adicionei uma conexão em `Admin > Connections`, com:
 
+   - Conn ID: `northwind_db`
+   - Conn Type: `Postgres`
+   - Host: `localhost`
+   - Port: `5432`
+   - Login: `northwind_user`
+   - Password: `thewindisblowing`
+   - Database: `northwind`
 
-Thank you for participating!
+2. **MongoDB**: Configurado similarmente com host `mongo-container-od0g`.
+
+### 4. Executando a Pipeline
+
+Para rodar a pipeline, ativei a DAG no Airflow e a executei manualmente ou aguardei sua execução automática.
+
+```bash
+# Para executar manualmente no terminal:
+airflow dags trigger data_pipeline
+```
+
+A DAG executa as seguintes tarefas:
+
+1. **Extrai os dados** do PostgreSQL e do CSV.
+2. **Salva localmente** em `/data/postgres/{tabela}/{data}/` e `/data/csv/{data}/`.
+3. **Carrega os dados** no banco de destino.
+4. **Executa uma query final** para exibir os pedidos e detalhes.
+
+### 5. Verificando o Resultado
+
+Para validar que tudo rodou corretamente, fiz a seguinte query no banco PostgreSQL final:
+
+```sql
+SELECT o.order_id, o.order_date, d.product_id, d.quantity
+FROM orders o
+JOIN order_details d ON o.order_id = d.order_id;
+```
+
+Se tudo ocorreu bem, um CSV com os resultados foi gerado.
+
+## Erros e Soluções
+
+### 1. `services.networks must be a mapping`
+
+Corrigi a identação da seção `networks` no `docker-compose.yml`:
+
+```yaml
+networks:
+  default:
+    driver: bridge
+```
+
+### 2. `could not open directory 'dbdata/' Permission denied`
+
+Esse erro ocorreu ao tentar versionar diretórios do Docker no Git. A solução foi ignorar os diretórios no `.gitignore`:
+
+```bash
+echo 'dbdata/' >> .gitignore
+git rm -r --cached dbdata/
+```
+
+### 3. `It looks like you are trying to access MongoDB over HTTP on the native driver port`
+
+Isso aconteceu porque tentei acessar o MongoDB sem um cliente adequado. Resolvi conectando corretamente via `mongo` CLI ou ferramentas como Robo 3T.
+
+## Conclusão
+
+Esse desafio foi uma grande oportunidade para consolidar conhecimentos em pipelines de dados, Airflow, e ferramentas ETL. A pipeline está configurada para rodar diariamente, garantindo que os dados sejam extraídos, armazenados e carregados corretamente.
+
+Caso tenha dúvidas ou sugestões, fique à vontade para entrar em contato ou abrir uma issue no repositório!
+
+Obrigado!
